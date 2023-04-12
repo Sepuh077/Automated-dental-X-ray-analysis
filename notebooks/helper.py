@@ -1,3 +1,5 @@
+import torch
+import pickle
 import cv2
 import os
 from bs4 import BeautifulSoup
@@ -25,6 +27,19 @@ def get_random_color():
             randint(0, 255),
             randint(0, 255)
         )
+
+
+def load_model(path, map_location='cuda'):
+    if not os.path.exists(path) or path.split('.')[-1] not in ['pt', 'pkl', 'pth']:
+        raise ValueError('Wrong path!')
+    
+    if path.split('.')[-1] == 'pkl':
+        with open(path, 'rb') as file:
+            model = pickle.load(file)
+    else:
+        model = torch.load(path, map_location=map_location)
+
+    return model
 
 
 def get_tooth_classes():
