@@ -1,0 +1,17 @@
+.ipynb_checkpoints/
+__pycache__/
+yolov5/
+other_images/
+datasets/
+.vscode/
+labels/
+models/
+results/
+checked/
+single_tooth/
+test/
+venv*/
+media/images/
+
+*.pdf
+*.cache
