@@ -16,28 +16,27 @@ device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 class XRayDetection:
     classes = get_tooth_classes_reverse()
-    number_detection_model = torch.load(ROOT / 'models' / 'single_tooth_number_detection2.pt', map_location=device)
 
     class ToothInfo:
-        def __init__(self, xmin, ymin, xmax ,ymax, data):
+        def __init__(self, xmin, ymin, xmax ,ymax, data, number=None):
             self.xmin = xmin
             self.ymin = ymin
             self.xmax = xmax
             self.ymax = ymax
             self.data = data
-            self.number = None
+            self.number = number
         
         def set_number_by_index(self, index):
             self.number = XRayDetection.classes[index]
 
-        def draw_bndbox(self, image):
-            image = draw_bndbox_on_image(
-                image=image,
-                class_name=self.number,
-                start=(self.xmin, self.ymin),
-                end=(self.xmax, self.ymax)
-            )
-            return image
+        # def draw_bndbox(self, image):
+        #     image = draw_bndbox_on_image(
+        #         image=image,
+        #         class_name=self.number,
+        #         start=(self.xmin, self.ymin),
+        #         end=(self.xmax, self.ymax)
+        #     )
+        #     return image
 
     def __init__(self, source):
         self.yolov5_general_kwargs = {
@@ -120,19 +119,17 @@ class XRayDetection:
 
         self._create_folder(exist_ok=False)
 
-        bndbox_infos = get_bndbox_infos_from_txt(label_path, False)
+        bndbox_infos = get_bndbox_infos_from_txt(label_path, with_class_names=True)
 
         image = cv2.imread(self.source)
         width, height, *_ = image.shape
 
-        ind = 1
-
         for bndbox_info in bndbox_infos:
-            xmin, ymin, xmax, ymax = bndbox_info
+            cls_name, xmin, ymin, xmax, ymax = bndbox_info
 
             x_min, y_min, x_max, y_max = from_percent_to_number(xmin, ymin, xmax, ymax, width, height)
 
-            cv2.imwrite(self.single_images_path / f'{ind}.jpg', image[y_min:y_max, x_min:x_max])
+            cv2.imwrite(self.single_images_path / f'{cls_name}.jpg', image[y_min:y_max, x_min:x_max])
 
             self.tooth_infos.append(
                 XRayDetection.ToothInfo(
@@ -141,20 +138,14 @@ class XRayDetection:
                     xmax=x_max,
                     ymax=y_max,
                     data = Processing.process_image(
-                        image=single_tooth_as_input2(
-                            self.single_images_path / f'{ind}.jpg',
-                            width=(xmax - xmin),
-                            height=(ymax - ymin),
-                            xcenter=(xmin + xmax) / 2,
-                            ycenter=(ymin + ymax) / 2
-                        ),
-                        size=(150, 400),
+                        image=image[y_min:y_max, x_min:x_max],
+                        size=(150, 100),
                         gray=True
-                    )
+                    ),
+                    number=cls_name
                 )
                 
             )
-            ind += 1
 
     def _collect_input_data(self):
         return torch.tensor(
@@ -166,18 +157,13 @@ class XRayDetection:
         for i, index in enumerate(output):
             self.tooth_infos[i].set_number_by_index(index.item())
 
-    def detect_numbers(self):
-        output = XRayDetection.number_detection_model(
-            self._collect_input_data()
-        )
-
         self.set_tooth_numbers(output)
 
     def get_image(self):
         image = cv2.imread(self.source)
 
-        for info in self.tooth_infos:
-            image = info.draw_bndbox(image)
+        # for info in self.tooth_infos:
+        #     image = info.draw_bndbox(image)
 
         return image
 
@@ -188,9 +174,7 @@ class XRayDetection:
 
         self.create_input_data(label_path)
 
-        self.detect_numbers()
-
         return self.get_image()
     
 if __name__ == '__main__':
-    XRayDetection('/home/sepuh/workspace/diploma/data/full_teeth/images/250.jpg').run()
+    XRayDetection('/home/sepuh/workspace/diploma/data/full_teeth/images/251.jpg').run()
