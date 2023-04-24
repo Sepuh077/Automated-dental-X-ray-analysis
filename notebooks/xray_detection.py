@@ -16,7 +16,7 @@ device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 class XRayDetection:
     classes = get_tooth_classes_reverse()
-    number_detection_model = torch.load(ROOT / 'models' / 'single_tooth_number_detection2.pt')
+    number_detection_model = torch.load(ROOT / 'models' / 'single_tooth_number_detection2.pt', map_location=device)
 
     class ToothInfo:
         def __init__(self, xmin, ymin, xmax ,ymax, data):
@@ -41,10 +41,11 @@ class XRayDetection:
 
     def __init__(self, source):
         self.yolov5_general_kwargs = {
-            'nosave': True,
             'exist_ok': True,
             'save_txt': True,
-            'project': ROOT / 'results'
+            'project': ROOT / 'results',
+            'iou_thres': 0,
+            'line_thickness': 2
         }
 
         self.source = source
@@ -99,7 +100,7 @@ class XRayDetection:
 
     def _detect_teeth(self):
         yolov5_detect(
-            weights=ROOT / 'models' / 'full_teeth_single_class' / 'weights' / 'best.pt',
+            weights=ROOT / 'models' / 'full_teeth' / 'weights' / 'best.pt',
             source=self.source,
             name='full_teeth',
             **self.yolov5_general_kwargs
@@ -111,8 +112,8 @@ class XRayDetection:
 
         return label_path
 
-    def detect_tooth_number(self, image):
-        pass
+    # def detect_tooth_number(self, image):
+    #     pass
 
     def create_input_data(self, label_path):
         self.single_images_path = MEDIA_SINGLE_TOOTH / self.filename
@@ -190,3 +191,6 @@ class XRayDetection:
         self.detect_numbers()
 
         return self.get_image()
+    
+if __name__ == '__main__':
+    XRayDetection('/home/sepuh/workspace/diploma/data/full_teeth/images/250.jpg').run()
