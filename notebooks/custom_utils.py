@@ -5,6 +5,7 @@ import pandas as pd
 import cv2
 from image_processing import Processing
 from helper import get_tooth_classes, make_gray, get_bndbox_infos_from_txt
+from augmentation import blur_image
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
@@ -130,47 +131,63 @@ def load_single_tooth_data_2(image_shape=(150, 400)):
         labels[test_indxs] 
     )
 
+def load_diseases_data(image_shape=(150, 100)):
+    """
+    Loads single tooth in big image(like full teeth) but other parts are 0
+    """
 
-def load_full_teeth_data(image_shape=(400, 800)):
-    data_path = '../data/full_teeth/'
+    data_path = '../data/single_tooth_disease/'
     images_path = data_path + 'images'
-    labels_path = data_path + 'labels'
 
-    classes = get_tooth_classes()
-
-    labels = []
     images = []
+    labels = []
 
-    for file_txt in os.listdir(labels_path):
-        filename, ext = os.path.splitext(file_txt)
+    df = pd.read_csv(data_path + 'labels.csv')
 
-        # Label part
-        infos = get_bndbox_infos_from_txt( os.path.join(labels_path, file_txt), with_class_names=True )
+    data_count = df.shape[0]
 
-        out_array = np.random.random( (160,) )
-
-        available_classes = []
-
-        for info in infos:
-            ind = classes[ info[0] ]
-            available_classes.append(ind)
-
-            out_array[ind * 5: ind * 5 + 5] = (1., *info[1:])
-
-        for i in range(32):
-            if i not in available_classes:
-                out_array[i * 5] = 0.
-
-        labels.append(out_array)
+    for i in range(data_count):
+        info = df.iloc[i]
         
-        # Input part
-        images.append( cv2.imread( os.path.join(images_path, filename + '.jpg') ) )
-    
+        img = cv2.imread( os.path.join(images_path, info["name"] ) )
+        
+        images.append( img )
+
+        label = [
+            int(info['problem']),
+            int(info['plomb']),
+            int(info['shapik']),
+            int(info['implant']),
+            int(info['nerv']),
+        ]
+
+        for i in range(5):
+            label[i] = [1, 0] if label[i] == 0 else [0, 1]
+        
+        labels.append(label)
+
+        if label[3][1] == 1:
+            images += [
+                blur_image(img, (10, 10)),
+                blur_image(img, (20, 20)),
+                blur_image(img, (30, 10)),
+                blur_image(img, (10, 30)),
+                blur_image(img, (30, 30))
+            ]
+            labels += ([label] * 5)
+        elif label[0][1] + label[1][1] + label[2][1] > 0:
+            images += [
+                blur_image(img, (10, 10)),
+                blur_image(img, (20, 20)),
+                blur_image(img, (30, 30))
+            ]
+            labels += ([label] * 3)
+
     data_count = len(labels)
 
     data_range = np.array( range(data_count), dtype=int )
 
-    train_indxs = np.random.choice(data_range, int(data_count * 0.8), replace=False)
+    train_indxs = np.random.choice(data_range, int(data_count * 0.85), replace=False)
     test_indxs = np.delete( data_range, train_indxs )
 
     processing = Processing()
@@ -179,10 +196,10 @@ def load_full_teeth_data(image_shape=(400, 800)):
 
     labels = torch.tensor( np.array(labels) ).float().to(device)
 
-    return (
-        images[train_indxs],
-        labels[train_indxs],
+    return ( 
+        images[train_indxs], 
+        labels[train_indxs], 
 
-        images[test_indxs],
-        labels[test_indxs]
+        images[test_indxs], 
+        labels[test_indxs] 
     )

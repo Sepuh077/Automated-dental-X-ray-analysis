@@ -10,30 +10,25 @@ class SingleToothNet(torch.nn.Module):
             torch.nn.BatchNorm2d(4),
             torch.nn.ReLU(),
             torch.nn.MaxPool2d( (2, 2) ),
-            # torch.nn.Dropout2d(p=0.1),
 
             torch.nn.Conv2d(4, 8, kernel_size=3),
             torch.nn.BatchNorm2d(8),
             torch.nn.ReLU(),
             torch.nn.MaxPool2d( (2, 2) ),
-            # torch.nn.Dropout2d(p=0.1),
 
             torch.nn.Conv2d(8, 16, kernel_size=3),
             torch.nn.BatchNorm2d(16),
             torch.nn.ReLU(),
             torch.nn.MaxPool2d( (2, 2) ),
-            # torch.nn.Dropout2d(p=0.2),
 
             torch.nn.Conv2d(16, 32, kernel_size=3),
             torch.nn.BatchNorm2d(32),
             torch.nn.ReLU(),
             torch.nn.MaxPool2d( (2, 2) ),
-            # torch.nn.Dropout2d(p=0.1),
 
             torch.nn.Conv2d(32, 128, kernel_size=3),
             torch.nn.BatchNorm2d(128),
             torch.nn.ReLU(),
-            # torch.nn.MaxPool2d( (2, 2) ),
 
             torch.nn.Flatten(),
         )
@@ -46,13 +41,9 @@ class SingleToothNet(torch.nn.Module):
             torch.nn.Linear(20, 30),
             torch.nn.Tanh(),
             torch.nn.Linear(30, 32),
-            # torch.nn.ReLU(),
         )
 
         self.d1 = torch.nn.Linear(2050, 50)
-        # self.d2 = torch.nn.Linear(100, 100)
-        # self.d3 = torch.nn.Linear(1000, 200)
-        # self.d4 = torch.nn.Linear(200, 100)
         self.d5 = torch.nn.Linear(50, 32)
 
         self.d6 = torch.nn.Linear(32, 32)
@@ -68,33 +59,14 @@ class SingleToothNet(torch.nn.Module):
         x = images[:, None]
         
         x = self.convs(x)
-
-        # print(x.shape)
         
         x = torch.cat( (positions, x), axis=-1 )
 
         x = self.tanh( self.d1(x) )
 
-        # x = x + self.tanh( self.d2(x) )
-
-        # x = self.dropout1(x)
-
-        # x = self.tanh( self.d2(x) )
-        # x = self.tanh( self.d3(x) )
-        # x = self.tanh( self.d4(x) )
-
         x = self.d5(x)
 
-        # x = self.softmax(x)
-
-        # x = self.pos( positions ) * 0.5 + x * 0.5
-
-        # x = self.tanh(x)
-
-        # x = self.d6(x)
-
         x = self.softmax(x)
-        # x = torch.abs(x)
 
         return x
 
@@ -108,33 +80,25 @@ class SingleToothNet2(torch.nn.Module):
             torch.nn.BatchNorm2d(3),
             torch.nn.ReLU(),
             torch.nn.MaxPool2d( (2, 2) ),
-            # torch.nn.Dropout2d(p=0.1),
 
             torch.nn.Conv2d(3,  6, kernel_size=3),
             torch.nn.BatchNorm2d(6),
             torch.nn.ReLU(),
             torch.nn.MaxPool2d( (2, 2) ),
-            # torch.nn.Dropout2d(p=0.1),
 
             torch.nn.Conv2d(6, 9, kernel_size=3),
             torch.nn.BatchNorm2d(9),
             torch.nn.ReLU(),
             torch.nn.MaxPool2d( (2, 2) ),
-            # torch.nn.Dropout2d(p=0.2),
 
             torch.nn.Conv2d(9, 12, kernel_size=3),
             torch.nn.BatchNorm2d(12),
-            # torch.nn.ReLU(),
-            # torch.nn.MaxPool2d( (3, 3) ),
-            # torch.nn.Dropout2d(p=0.1),
 
             torch.nn.Flatten(),
         )
 
         self.d1 = torch.nn.Linear(8280, 32)
         self.d2 = torch.nn.Linear(32, 32)
-        # self.d3 = torch.nn.Linear(1000, 200)
-        # self.d4 = torch.nn.Linear(200, 50)
 
         self.tanh = torch.nn.Tanh()
         self.softmax = torch.nn.Softmax()
@@ -144,62 +108,139 @@ class SingleToothNet2(torch.nn.Module):
         x = self.convs(x[:, None])
 
         x = self.relu( self.d1(x) )
-
-        # x = x + self.relu(x)
 
         x = self.softmax( self.d2(x) )
 
         return x
     
 
-class FullTeethModel(torch.nn.Module):
+class FF(torch.nn.Module):
     def __init__(self):
-        super(FullTeethModel, self).__init__()
+        super().__init__()
+        self.d1 = torch.nn.Linear(15000, 200)
+        self.d2 = torch.nn.Linear(200, 50)
+        self.d3 = torch.nn.Linear(50, 10)
 
-        self.convs = torch.nn.Sequential(
-            torch.nn.Conv2d(1, 4, kernel_size=3),
-            torch.nn.BatchNorm2d(4),
+        self.tanh = torch.nn.Tanh()
+
+    def forward(self, x):
+        x = x.reshape(x.size(0), -1)
+
+        x = self.tanh( self.d1(x) )
+
+        x = self.tanh( self.d2(x) )
+
+        x = self.d3(x)
+
+        return x.reshape(-1, 5, 2)
+
+
+class FF_ResNet(torch.nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.d1 = torch.nn.Linear(15000, 200)
+        self.d1_res = torch.nn.Linear(200, 200)
+        self.d2 = torch.nn.Linear(200, 50)
+        self.d3 = torch.nn.Linear(50, 10)
+        self.d3_res = torch.nn.Linear(10, 10)
+
+        self.tanh = torch.nn.Tanh()
+
+    def forward(self, x):
+        x = x.reshape(x.size(0), -1)
+
+        x = self.tanh( self.d1(x) )
+        x = x + self.tanh( self.d1_res(x) )
+
+        x = self.tanh( self.d2(x) )
+
+        x = self.tanh( self.d3(x) )
+        x = x + self.tanh( self.d3_res(x) )
+
+        return x.reshape(-1, 5, 2)
+
+
+class Conv(torch.nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.conv = torch.nn.Sequential(
+            torch.nn.Conv2d(1, 8, 3),
             torch.nn.ReLU(),
-            torch.nn.MaxPool2d( (3, 3) ),
-            # torch.nn.Dropout2d(p=0.1),
-
-            torch.nn.Conv2d(4,  12, kernel_size=3),
-            torch.nn.BatchNorm2d(12),
+            torch.nn.MaxPool2d(2),
+            torch.nn.Conv2d(8, 16, 3),
             torch.nn.ReLU(),
-            torch.nn.MaxPool2d( (3, 3) ),
-            # torch.nn.Dropout2d(p=0.1),
-
-            torch.nn.Conv2d(12, 36, kernel_size=3),
-            torch.nn.BatchNorm2d(36),
+            torch.nn.MaxPool2d(2),
+            torch.nn.Conv2d(16, 32, 3),
             torch.nn.ReLU(),
-            torch.nn.MaxPool2d( (2, 2) ),
-            # torch.nn.Dropout2d(p=0.2),
-
-            torch.nn.Conv2d(36, 128, kernel_size=3),
-            torch.nn.BatchNorm2d(128),
-            # torch.nn.ReLU(),
-            # torch.nn.MaxPool2d( (3, 3) ),
-            # torch.nn.Dropout2d(p=0.1),
-
-            torch.nn.Flatten(),
+            torch.nn.MaxPool2d(2),
+            torch.nn.Conv2d(32, 64, 3),
+            torch.nn.ReLU(),
+            torch.nn.MaxPool2d(2),
+            torch.nn.Conv2d(64, 128, 3),
+            torch.nn.Flatten()
         )
-
-        self.d1 = torch.nn.Linear(94464, 200)
-        self.d2 = torch.nn.Linear(200, 160)
-        # self.d3 = torch.nn.Linear(1000, 200)
-        # self.d4 = torch.nn.Linear(200, 50)
+        self.d1 = torch.nn.Linear(1280, 500)
+        self.d2 = torch.nn.Linear(500, 200)
+        self.d3 = torch.nn.Linear(200, 50)
+        self.d4 = torch.nn.Linear(50, 10)
 
         self.tanh = torch.nn.Tanh()
         self.softmax = torch.nn.Softmax()
-        self.relu = torch.nn.ReLU()
 
     def forward(self, x):
-        x = self.convs(x[:, None])
+        x = self.conv(x[:, None])
 
-        x = self.relu( self.d1(x) )
+        x = self.tanh( self.d1(x) )
 
-        # x = x + self.relu(x)
+        x = self.tanh( self.d2(x) )
 
-        x = self.softmax( self.d2(x) )
+        x = self.tanh( self.d3(x) )
 
-        return x
+        x = self.d4(x)
+
+        return x.reshape(-1, 5, 2)
+    
+
+class ResNet(torch.nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.conv = torch.nn.Sequential(
+            torch.nn.Conv2d(1, 8, 3),
+            torch.nn.ReLU(),
+            torch.nn.MaxPool2d(2),
+            torch.nn.Conv2d(8, 16, 3),
+            torch.nn.ReLU(),
+            torch.nn.MaxPool2d(2),
+            torch.nn.Conv2d(16, 32, 3),
+            torch.nn.ReLU(),
+            torch.nn.MaxPool2d(2),
+            torch.nn.Conv2d(32, 64, 3),
+            torch.nn.ReLU(),
+            torch.nn.MaxPool2d(2),
+            torch.nn.Conv2d(64, 128, 3),
+            torch.nn.Flatten()
+        )
+        self.d1 = torch.nn.Linear(1280, 500)
+        self.d2 = torch.nn.Linear(500, 200)
+        self.d2_res = torch.nn.Linear(200, 200)
+        self.d3 = torch.nn.Linear(200, 50)
+        self.d4 = torch.nn.Linear(50, 10)
+        self.d4_res = torch.nn.Linear(10, 10)
+
+        self.tanh = torch.nn.Tanh()
+        self.softmax = torch.nn.Softmax()
+
+    def forward(self, x):
+        x = self.conv(x[:, None])
+
+        x = self.tanh( self.d1(x) )
+
+        x = self.tanh( self.d2(x) )
+        x = x + self.tanh( self.d2_res(x) )
+
+        x = self.tanh( self.d3(x) )
+        
+        x = self.tanh( self.d4(x) )
+        x = x + self.tanh( self.d4_res(x) )
+
+        return x.reshape(-1, 5, 2)

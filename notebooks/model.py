@@ -47,7 +47,7 @@ class Model:
         self.is_compiled = True
 
     def get_accuracy(self, out, pred):
-        return torch.sum(torch.argmax(out, axis=-1) == torch.argmax(pred, axis=-1)).item() / out.size(0) * 100
+        return torch.sum(torch.argmax(out, axis=-1) == torch.argmax(pred, axis=-1)).item() / (out.size(0) * out.size(1)) * 100
     
     def get_prediction(self):
         self.model.eval()
