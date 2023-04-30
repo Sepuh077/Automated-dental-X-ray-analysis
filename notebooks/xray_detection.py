@@ -2,7 +2,7 @@ import torch
 import cv2
 import shutil
 
-from nets import SingleToothNet, SingleToothNet2
+from nets import Conv
 from custom_utils import single_tooth_as_input2
 
 from helper import get_bndbox_infos_from_txt, from_percent_to_number, get_tooth_classes_reverse, draw_bndbox_on_image
@@ -16,6 +16,7 @@ device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 class XRayDetection:
     classes = get_tooth_classes_reverse()
+    DISEASE_DETECTION_MODEL = torch.load(ROOT / 'main_models' / 'disease_cnn.pt', map_location=device)
 
     class ToothInfo:
         def __init__(self, xmin, ymin, xmax ,ymax, data, number=None):
@@ -23,20 +24,23 @@ class XRayDetection:
             self.ymin = ymin
             self.xmax = xmax
             self.ymax = ymax
-            self.data = data
+            self.data = torch.tensor(data).to(device)
             self.number = number
         
         def set_number_by_index(self, index):
             self.number = XRayDetection.classes[index]
 
-        # def draw_bndbox(self, image):
-        #     image = draw_bndbox_on_image(
-        #         image=image,
-        #         class_name=self.number,
-        #         start=(self.xmin, self.ymin),
-        #         end=(self.xmax, self.ymax)
-        #     )
-        #     return image
+        def detect_disease(self):
+            pass
+
+        def draw_bndbox(self, image):
+            image = draw_bndbox_on_image(
+                image=image,
+                class_name=self.number,
+                start=(self.xmin, self.ymin),
+                end=(self.xmax, self.ymax)
+            )
+            return image
 
     def __init__(self, source):
         self.yolov5_general_kwargs = {
@@ -111,9 +115,6 @@ class XRayDetection:
 
         return label_path
 
-    # def detect_tooth_number(self, image):
-    #     pass
-
     def create_input_data(self, label_path):
         self.single_images_path = MEDIA_SINGLE_TOOTH / self.filename
 
@@ -152,20 +153,63 @@ class XRayDetection:
             [info.data for info in self.tooth_infos]
         ).float().to(device)
     
-    def set_tooth_numbers(self, output):
-        output = torch.argmax(output, dim=-1)
-        for i, index in enumerate(output):
-            self.tooth_infos[i].set_number_by_index(index.item())
+    def generate_diagnosis(self, img_name, results):
+        tooth_number = img_name.split('.')[0]
+        if results.sum() == 0:
+            return f'{tooth_number} համարի ատամը առողջ է։'
+        
+        text = ''
+        plomb_text = ''
+        
+        if results[1] == 1:
+            plomb_text = f'{tooth_number} համարի ատամը պլոմբավորված է:'
+        if results[2] == 1:
+            text = ('Այդ ' if plomb_text else f'{tooth_number} ') + 'ատամի վրա տեղադրված է շապիկ'
+            if not results[3]:
+                text += ':'
+        if results[3] == 1:
+            if text:
+                text += ' և իմպլանտ։'
+            else:
+                text = ('Այդ ' if plomb_text else f'{tooth_number} ') + 'ատամի վրա տեղադրված է իմպլանտ:'
+        
+        if results[4]:
+            if text or plomb_text:
+                text += 'Ատամի նյարդը հեռացված է։'
+            else:
+                text = f'{tooth_number} համարի ատամի նյարդը հեռացված է։'
+        if results[0]:
+            if text or plomb_text:
+                text += 'Ատամի մոտ նկատվել են այլ առողջական խնդիրներ։'
+            else:
+                text = f'{tooth_number} համարի ատամի մոտ նկատվել են այլ առողջական խնդիրներ։'
 
-        self.set_tooth_numbers(output)
+        return plomb_text + text
+        
+    
+    def detect_image_disease(self, image, img_name):
+        out = self.DISEASE_DETECTION_MODEL( torch.tensor(image).float().to(device)[None] )
+        ans = torch.argmax(out, axis=-1).squeeze().detach().cpu().numpy()
 
-    def get_image(self):
-        image = cv2.imread(self.source)
+        diagnosis_text = self.generate_diagnosis(img_name, ans)
+        
+        csv_text = f'{img_name},{ans[0]},{ans[1]},{ans[2]},{ans[3]},{ans[4]},{diagnosis_text}\n'
 
-        # for info in self.tooth_infos:
-        #     image = info.draw_bndbox(image)
+        return csv_text
+        
+    
+    def detect_diseases(self):
+        csv_texts = 'Անուն,Խնդիր,Պլոմբ,Շապիկ,Իմպլանտ,Նյարդ,Ախտորոշում\n'
 
-        return image
+        for img_name in os.listdir(self.single_images_path):
+            img = cv2.imread( os.path.join(self.single_images_path, img_name) )
+            img = Processing.process_image( img, (150, 100) ) / 255.
+            csv_texts += self.detect_image_disease(img, img_name)
+        
+        with open( os.path.join(self.single_images_path, 'results.csv'), 'w' ) as file:
+            file.write(csv_texts)
+
+        print(csv_texts)
 
     def run(self):
         self._move_and_normalize_source()
@@ -174,7 +218,8 @@ class XRayDetection:
 
         self.create_input_data(label_path)
 
-        return self.get_image()
+        self.detect_diseases()
     
 if __name__ == '__main__':
-    XRayDetection('/home/sepuh/workspace/diploma/data/full_teeth/images/251.jpg').run()
+    XRayDetection('/home/sepuh/workspace/diploma/data/full_teeth/images/37.jpg').run()
+    
