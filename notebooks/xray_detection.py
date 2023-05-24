@@ -153,7 +153,8 @@ class XRayDetection:
             [info.data for info in self.tooth_infos]
         ).float().to(device)
     
-    def generate_diagnosis(self, img_name, results):
+    @staticmethod
+    def generate_diagnosis(img_name, results):
         tooth_number = img_name.split('.')[0]
         if results.sum() == 0:
             return f'{tooth_number} համարի ատամը առողջ է։'
@@ -164,14 +165,14 @@ class XRayDetection:
         if results[1] == 1:
             plomb_text = f'{tooth_number} համարի ատամը պլոմբավորված է:'
         if results[2] == 1:
-            text = ('Այդ ' if plomb_text else f'{tooth_number} ') + 'ատամի վրա տեղադրված է շապիկ'
+            text = ('Այդ ' if plomb_text else f'{tooth_number} համարի ') + 'ատամի վրա տեղադրված է շապիկ'
             if not results[3]:
                 text += ':'
         if results[3] == 1:
             if text:
                 text += ' և իմպլանտ։'
             else:
-                text = ('Այդ ' if plomb_text else f'{tooth_number} ') + 'ատամի վրա տեղադրված է իմպլանտ:'
+                text = ('Այդ ' if plomb_text else f'{tooth_number} համարի ') + 'ատամի վրա տեղադրված է իմպլանտ:'
         
         if results[4]:
             if text or plomb_text:
@@ -191,7 +192,7 @@ class XRayDetection:
         out = self.DISEASE_DETECTION_MODEL( torch.tensor(image).float().to(device)[None] )
         ans = torch.argmax(out, axis=-1).squeeze().detach().cpu().numpy()
 
-        diagnosis_text = self.generate_diagnosis(img_name, ans)
+        diagnosis_text = XRayDetection.generate_diagnosis(img_name, ans)
         
         csv_text = f'{img_name},{ans[0]},{ans[1]},{ans[2]},{ans[3]},{ans[4]},{diagnosis_text}\n'
 
@@ -221,5 +222,4 @@ class XRayDetection:
         self.detect_diseases()
     
 if __name__ == '__main__':
-    XRayDetection('/home/sepuh/workspace/diploma/data/full_teeth/images/37.jpg').run()
-    
+    XRayDetection('/home/sepuh/workspace/diploma/data/full_teeth/images/470.jpg').run()

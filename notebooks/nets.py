@@ -4,7 +4,6 @@ import torch
 class SingleToothNet(torch.nn.Module):
     def __init__(self):
         super(SingleToothNet, self).__init__()
-
         self.convs = torch.nn.Sequential(
             torch.nn.Conv2d(1, 4, kernel_size=3),
             torch.nn.BatchNorm2d(4),
@@ -32,7 +31,6 @@ class SingleToothNet(torch.nn.Module):
 
             torch.nn.Flatten(),
         )
-
         self.pos = torch.nn.Sequential(
             torch.nn.Linear(2, 10),
             torch.nn.Tanh(),
@@ -42,32 +40,23 @@ class SingleToothNet(torch.nn.Module):
             torch.nn.Tanh(),
             torch.nn.Linear(30, 32),
         )
-
-        self.d1 = torch.nn.Linear(2050, 50)
-        self.d5 = torch.nn.Linear(50, 32)
-
+        self.d1 = torch.nn.Linear(2048, 100)
+        self.d2 = torch.nn.Linear(100, 32)
         self.d6 = torch.nn.Linear(32, 32)
-
-        self.dropout1 = torch.nn.Dropout(p=0.2)
-
         self.tanh = torch.nn.Tanh()
         self.softmax = torch.nn.Softmax()
-        self.relu = torch.nn.ReLU()
 
     def forward(self, x):
         images, positions = x
         x = images[:, None]
-        
         x = self.convs(x)
-        
-        x = torch.cat( (positions, x), axis=-1 )
-
         x = self.tanh( self.d1(x) )
-
-        x = self.d5(x)
-
+        x = self.d2(x)
+        pos_x = self.pos(positions)
+        x = 0.8 * pos_x + 0.2 * x
+        x = self.tanh(x)
+        x = self.d6(x)
         x = self.softmax(x)
-
         return x
 
 

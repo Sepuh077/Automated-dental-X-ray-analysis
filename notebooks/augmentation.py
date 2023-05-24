@@ -57,7 +57,10 @@ def create_all_single_images():
 
 
 def images_to_pdf(image_paths, file_name='1'):
-    images = [Image.open(img_path).convert('RGB') for img_path in image_paths if os.path.exists(img_path)]
+    if isinstance(image_paths[0], str):
+        images = [Image.open(img_path).convert('RGB') for img_path in image_paths if os.path.exists(img_path)]
+    else:
+        images = [Image.fromarray(img_path).convert('RGB') for img_path in image_paths]
 
     images[0].save(f'{file_name}.pdf', save_all=True, append_images=images[1:])
 

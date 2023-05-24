@@ -45,7 +45,7 @@ class Processing:
     def add_border(image, new_shape):
         height, width = image.shape[:2]
 
-        h, w = new_shape
+        h, w = new_shape[:2]
 
         channels = image.shape[2] if len(image.shape) > 2 else 1
 
@@ -92,7 +92,7 @@ class Processing:
         """
         height, width = image.shape[:2]
 
-        h, w = new_shape
+        h, w = new_shape[:2]
 
         if h / height < w / width:
             return cv2.resize(image, ( int(width * h / height), h ) )

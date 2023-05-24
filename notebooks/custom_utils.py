@@ -203,3 +203,67 @@ def load_diseases_data(image_shape=(150, 100)):
         images[test_indxs], 
         labels[test_indxs] 
     )
+
+
+def load_diseases_test_data(image_shape=(150, 100)):
+    """
+    Loads single tooth in big image(like full teeth) but other parts are 0
+    """
+
+    data_path = '../data/single_tooth_disease/'
+    images_path = data_path + 'test_images'
+
+    images = []
+    labels = []
+
+    df = pd.read_csv(data_path + 'test_labels.csv')
+
+    data_count = df.shape[0]
+
+    for i in range(data_count):
+        info = df.iloc[i]
+        
+        img = cv2.imread( os.path.join(images_path, info["name"] ) )
+        
+        images.append( img )
+
+        label = [
+            int(info['problem']),
+            int(info['plomb']),
+            int(info['shapik']),
+            int(info['implant']),
+            int(info['nerv']),
+        ]
+
+        for i in range(5):
+            label[i] = [1, 0] if label[i] == 0 else [0, 1]
+        
+        labels.append(label)
+
+        # if label[3][1] == 1:
+        #     images += [
+        #         blur_image(img, (10, 10)),
+        #         blur_image(img, (20, 20)),
+        #         blur_image(img, (30, 10)),
+        #         blur_image(img, (10, 30)),
+        #         blur_image(img, (30, 30))
+        #     ]
+        #     labels += ([label] * 5)
+        # elif label[0][1] + label[1][1] + label[2][1] > 0:
+        #     images += [
+        #         blur_image(img, (10, 10)),
+        #         blur_image(img, (20, 20)),
+        #         blur_image(img, (30, 30))
+        #     ]
+        #     labels += ([label] * 3)
+
+    processing = Processing()
+    processing.images = images
+    images = torch.tensor( processing.modify_images( image_shape ) ).float().to(device)
+
+    labels = torch.tensor( np.array(labels) ).float().to(device)
+
+    return ( 
+        images, 
+        labels, 
+    )
